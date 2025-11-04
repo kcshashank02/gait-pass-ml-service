@@ -82,33 +82,6 @@ async def extract_embedding(image: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e)) 
 
 
-
-# @app.post("/extract-embedding")
-# async def extract_embedding(image: UploadFile = File(...)):
-#     """Extract face embedding from image"""
-#     try:
-#         # Read and decode image
-#         content = await image.read()
-#         nparr = np.frombuffer(content, np.uint8)
-#         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-#         if img is None:
-#             raise HTTPException(status_code=400, detail="Invalid image file")
-        
-#         # Extract embedding
-#         result = await ml_service.extract_face_embedding_from_array(img)
-#         return result
-        
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         error_msg = str(e) if str(e) else f"Embedding extraction failed: {type(e).__name__}"
-#         logger.error(f"Extract embedding failed: {error_msg}", exc_info=True)
-#         raise HTTPException(status_code=500, detail=error_msg)
-
-
-
-
 @app.post("/compare-embeddings")
 async def compare_embeddings(
     embedding1: List[float],
@@ -121,20 +94,6 @@ async def compare_embeddings(
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/batch-recognize")
-# async def batch_recognize(request: dict):
-#     """Batch recognition"""
-#     try:
-#         query_embedding = request.get("query_embedding")
-#         known_faces = request.get("known_faces")
-#         threshold = request.get("threshold", 0.4)
-        
-#         result = await ml_service.batch_recognize(query_embedding, known_faces, threshold)
-#         return result
-#     except Exception as e:
-#         logger.error(f"Batch recognize failed: {e}", exc_info=True)
-#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/batch-recognize")
