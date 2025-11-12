@@ -5,32 +5,28 @@ import logging
 import cv2
 import numpy as np
 from typing import List, Dict
-
-
-from app.ml_service import MLService
-
+import os
+from app.mlservice import MLService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Global ML service
-ml_service = None
+mlservice = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("🚀 Initializing ML Service...")
-    global ml_service
-    ml_service = MLService()
-    await ml_service.initialize()
-    logger.info("✅ ML Service ready")
-    
+    logger.info("Initializing ML Service...")
+    global mlservice
+    mlservice = MLService()
+    await mlservice.initialize()
+    logger.info("ML Service ready")
     yield
-    
     # Shutdown
-    if ml_service:
-        await ml_service.cleanup()
-    logger.info("🛑 ML Service shutdown")
+    if mlservice:
+        await mlservice.cleanup()
+    logger.info("ML Service shutdown")
 
 app = FastAPI(
     title="Gait-Pass ML Service",
@@ -39,10 +35,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# ✅ Get CORS origins from environment variable
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://localhost:5173,https://gait-pass-backend.onrender.com"
+)
+
+# ✅ Parse comma-separated origins
+origins = [origin.strip() for origin in CORS_ORIGINS.split(",")]
+logger.info(f"ML Service CORS Origins: {origins}")
+
+# ✅ Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,13 +80,11 @@ async def extract_embedding(image: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Invalid image")
         
         # Extract embedding
-        result = await ml_service.extract_face_embedding_from_array(img)
+        result = await mlservice.extract_face_embedding_from_array(img)
         return result
-        
     except Exception as e:
         logger.error(f"Extract embedding failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) 
-
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/compare-embeddings")
 async def compare_embeddings(
@@ -90,11 +94,10 @@ async def compare_embeddings(
 ):
     """Compare two embeddings"""
     try:
-        result = await ml_service.compare_embeddings(embedding1, embedding2, threshold)
+        result = await mlservice.compare_embeddings(embedding1, embedding2, threshold)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/batch-recognize")
 async def batch_recognize(request: dict):
@@ -113,50 +116,22 @@ async def batch_recognize(request: dict):
                 "message": "No known faces provided"
             }
         
-        # Convert to numpy arrays
-        query_emb = np.array(query_embedding)
-        
-        best_match_user_id = None
-        min_distance = float('inf')
-        
-        # Compare with all known faces
-        for user_id, embeddings_list in known_faces.items():
-            for embedding in embeddings_list:
-                known_emb = np.array(embedding)
-                
-                # Calculate Euclidean distance
-                distance = np.linalg.norm(query_emb - known_emb)
-                
-                if distance < min_distance:
-                    min_distance = distance
-                    best_match_user_id = user_id
-        
-        # Check if best match is within threshold
-        if min_distance <= threshold:
-            return {
-                "recognized": True,
-                "user_id": best_match_user_id,
-                "confidence": float(1 - (min_distance / threshold)),
-                "min_distance": float(min_distance)
-            }
-        else:
-            return {
-                "recognized": False,
-                "message": "No match found within threshold",
-                "min_distance": float(min_distance),
-                "threshold": threshold
-            }
-            
+        # Batch recognition
+        result = await mlservice.batch_recognize(
+            query_embedding,
+            known_faces,
+            threshold
+        )
+        return result
     except Exception as e:
         logger.error(f"Batch recognize failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/health")
 async def health():
     """Health check"""
     try:
-        health_status = await ml_service.health_check()
+        health_status = await mlservice.health_check()
         return {
             "status": "healthy",
             "ml_service": health_status
