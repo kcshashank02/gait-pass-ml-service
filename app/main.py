@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from typing import List, Dict
 import os
-from app.mlservice import MLService
+from app.mlservice import MLService  # ✅ This import is ONLY for ML service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,7 +71,6 @@ async def root():
 async def extract_embedding(image: UploadFile = File(...)):
     """Extract face embedding from image"""
     try:
-        # Read image
         content = await image.read()
         nparr = np.frombuffer(content, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -79,7 +78,6 @@ async def extract_embedding(image: UploadFile = File(...)):
         if img is None:
             raise HTTPException(status_code=400, detail="Invalid image")
         
-        # Extract embedding
         result = await mlservice.extract_face_embedding_from_array(img)
         return result
     except Exception as e:
@@ -116,7 +114,6 @@ async def batch_recognize(request: dict):
                 "message": "No known faces provided"
             }
         
-        # Batch recognition
         result = await mlservice.batch_recognize(
             query_embedding,
             known_faces,
@@ -144,4 +141,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860)  # Hugging Face uses port 7860
+    uvicorn.run(app, host="0.0.0.0", port=7860)
