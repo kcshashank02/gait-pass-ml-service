@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from typing import List, Dict
 import os
-from app.mlservice import MLService  # ✅ This import is ONLY for ML service
+from app.ml_service import MLService  
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
